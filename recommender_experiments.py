@@ -105,15 +105,15 @@ def recsys():
     R_df = df.pivot(index = 'UserID', columns ='MovieID', values = 'Rating').fillna(0)
     R = R_df.values
     A = training_dataset().values
-    B = svd_MF().values
-    """TODO:  Check how to do a train test split + how to evaluate each matrix factorization
-    """
-    # MSE like this is a very poor way of checking...
-    mse_svds = np.mean((R - A)**2)
-    mse_mf = np.mean((R - B)**2)
-    print(f"MSE between R itself: {np.mean((R - R)**2)}")
-    print(f"MSE for SVDS: {mse_svds}")
-    print(f"MSE for MF: {mse_mf}")
+    #B = svd_MF().values
+    #"""TODO:  Check how to do a train test split + how to evaluate each matrix factorization
+    #"""
+    ## MSE like this is a very poor way of checking...
+    #mse_svds = np.mean((R - A)**2)
+    #mse_mf = np.mean((R - B)**2)
+    #print(f"MSE between R itself: {np.mean((R - R)**2)}")
+    #print(f"MSE for SVDS: {mse_svds}")
+    #print(f"MSE for MF: {mse_mf}")
 
 
 
@@ -122,9 +122,18 @@ def training_dataset():
     # Supress scientific notation
     np.set_printoptions(suppress=True, linewidth=300)
     num_latent_features = 2
+    train_size = .85 # Percentage of the data to use for training
     df = pd.read_csv("ml-latest-small/ratings.csv")
     df.columns = ['UserID', 'MovieID', 'Rating', 'Timestamp']
     R_df = df.pivot(index = 'UserID', columns ='MovieID', values = 'Rating').fillna(0)
+    df = df.drop(['Timestamp'], axis=1)
+    rnd_permutation = np.random.permutation(df.values)
+    last_pos = int(train_size*len(df.values)) + 1
+    X_train = rnd_permutation[:last_pos]
+    X_test = rnd_permutation[last_pos:]
+    """ print(X_train.shape)
+    print(X_test.shape) """
+    # TODO: Create the matrix correctly based on X_TRAIN userID and column => Pivot!
     R = R_df.as_matrix()
     user_ratings_mean = np.mean(R, axis = 1)
     R_demeaned = R - user_ratings_mean.reshape(-1, 1)
