@@ -104,8 +104,8 @@ def recsys():
     df.columns = ['UserID', 'MovieID', 'Rating', 'Timestamp']
     R_df = df.pivot(index = 'UserID', columns ='MovieID', values = 'Rating').fillna(0)
     R = R_df.values
-    A = training_dataset().values
-    #B = svd_MF().values
+    A = training_dataset()
+    B = svd_MF()
     #"""TODO:  Check how to do a train test split + how to evaluate each matrix factorization
     #"""
     ## MSE like this is a very poor way of checking...
@@ -121,52 +121,83 @@ def recsys():
 def training_dataset():
     # Supress scientific notation
     np.set_printoptions(suppress=True, linewidth=300)
-    num_latent_features = 2
-    train_size = .85 # Percentage of the data to use for training
+    # Number of latent features of the Matrix Factorization
+    num_latent_features = 50
+    # Percentage of the data to use for training. (1 - train_size) will be for testing
+    train_size = .85
     df = pd.read_csv("ml-latest-small/ratings.csv")
     df.columns = ['UserID', 'MovieID', 'Rating', 'Timestamp']
-    R_df = df.pivot(index = 'UserID', columns ='MovieID', values = 'Rating').fillna(0)
+    whole_data = df.pivot(index = 'UserID', columns ='MovieID', values = 'Rating').fillna(0)
     df = df.drop(['Timestamp'], axis=1)
+    uniq_movies = np.unique(df.values[:, 1]).astype(int)
+    # Mapping movie indices
+    movie_to_index = {k:v for k, v in zip(uniq_movies, range(len(uniq_movies)))}
+    # Prepare training and test data
     rnd_permutation = np.random.permutation(df.values)
     last_pos = int(train_size*len(df.values)) + 1
     X_train = rnd_permutation[:last_pos]
+    X_train[:, 0] = X_train[:, 0] - 1
+    X_train[:, 1] = np.array(list(map(lambda m_id: movie_to_index[int(m_id)], X_train[:, 1])))
     X_test = rnd_permutation[last_pos:]
-    """ print(X_train.shape)
-    print(X_test.shape) """
-    # TODO: Create the matrix correctly based on X_TRAIN userID and column => Pivot!
-    R = R_df.as_matrix()
+    X_test[:, 0] = X_test[:, 0] - 1
+    X_test[:, 1] = np.array(list(map(lambda m_id: movie_to_index[int(m_id)], X_test[:, 1])))
+    new = np.zeros(whole_data.values.shape)
+    # Add training data to our matrix to be trained. The other data are zero values
+    new[X_train[:, 0].astype(int), X_train[:, 1].astype(int)] = X_train[:, 2]
+    R = new
     user_ratings_mean = np.mean(R, axis = 1)
     R_demeaned = R - user_ratings_mean.reshape(-1, 1)
     U, sigma, Vt = svds(R_demeaned, k = num_latent_features)
     sigma = np.diag(sigma)
-    all_user_predicted_ratings = np.dot(np.dot(U, sigma), Vt) + user_ratings_mean.reshape(-1, 1)
-    #preds_df = pd.DataFrame(all_user_predicted_ratings, columns = R_df.columns)
-    preds_df = pd.DataFrame(all_user_predicted_ratings)
-    print(preds_df.head())
+    recc = np.dot(np.dot(U, sigma), Vt) + user_ratings_mean.reshape(-1, 1)
+    #preds_df = pd.DataFrame(recc, columns = R_df.columns)
+    #preds_df = pd.DataFrame(recc)
+    #print(preds_df.head())
     # Testing for user 0
     num_recommendations = 10
-    ratings = np.array(preds_df.iloc[0])
+    ratings = recc[0]
     # Negative because we want the max
     ind = np.argpartition(ratings, -num_recommendations)[-num_recommendations:]
     print(f"Recommendations for user [0]:")
     print(f"Indexes: {ind}")
     print(f"Ratings: {ratings[ind]}")
-    return preds_df
+    # Calculate the MSE using the Frobenius norm
+    # Correct indexes from the training
+    u_id = X_test[:, 0].astype(int)
+    m_id = X_test[:, 1].astype(int)
+    # Frobenius norm (https://stats.stackexchange.com/questions/97411/evaluating-matrix-factorization-algorithms-for-netflix)
+    mse = np.mean((X_test[:, 2] - recc[u_id, m_id])**2)
+    print(f"Mean Squared Error: {mse}")
+    return recc, mse
 
 def svd_MF():
-    R = np.array([
-    [5, 3, 0, 1],
-    [4, 0, 0, 1],
-    [1, 1, 0, 5],
-    [1, 0, 0, 4],
-    [0, 1, 5, 4]
-    ])
+    # Supress scientific notation
+    np.set_printoptions(suppress=True, linewidth=300)
+    # Number of latent features of the Matrix Factorization
     num_latent_features = 50
+    # Percentage of the data to use for training. (1 - train_size) will be for testing
+    train_size = .85
     df = pd.read_csv("ml-latest-small/ratings.csv")
     df.columns = ['UserID', 'MovieID', 'Rating', 'Timestamp']
-    R_df = df.pivot(index = 'UserID', columns ='MovieID', values = 'Rating').fillna(0)
-    R = R_df.values
-    mf = MF(R, K=num_latent_features, alpha=0.001, beta=0.01, iterations=50)
+    whole_data = df.pivot(index = 'UserID', columns ='MovieID', values = 'Rating').fillna(0)
+    df = df.drop(['Timestamp'], axis=1)
+    uniq_movies = np.unique(df.values[:, 1]).astype(int)
+    # Mapping movie indices
+    movie_to_index = {k:v for k, v in zip(uniq_movies, range(len(uniq_movies)))}
+    # Prepare training and test data
+    rnd_permutation = np.random.permutation(df.values)
+    last_pos = int(train_size*len(df.values)) + 1
+    X_train = rnd_permutation[:last_pos]
+    X_train[:, 0] = X_train[:, 0] - 1
+    X_train[:, 1] = np.array(list(map(lambda m_id: movie_to_index[int(m_id)], X_train[:, 1])))
+    X_test = rnd_permutation[last_pos:]
+    X_test[:, 0] = X_test[:, 0] - 1
+    X_test[:, 1] = np.array(list(map(lambda m_id: movie_to_index[int(m_id)], X_test[:, 1])))
+    new = np.zeros(whole_data.values.shape)
+    # Add training data to our matrix to be trained. The other data are zero values
+    new[X_train[:, 0].astype(int), X_train[:, 1].astype(int)] = X_train[:, 2]
+    R = new
+    mf = MF(R, K=num_latent_features, alpha=0.001, beta=0.01, iterations=30)
     training_process = mf.train()
     """ print()
     print("P x Q:")
@@ -180,18 +211,23 @@ def svd_MF():
     print()
     print("Item bias:")
     print(mf.b_i)"""
-    preds_df = pd.DataFrame(mf.full_matrix())
-    print(preds_df.head())
-    # Testing for user 0
+    recc = mf.full_matrix()
     num_recommendations = 10
-    ratings = np.array(preds_df.iloc[0])
+    ratings = recc[0]
     # Negative because we want the max
     ind = np.argpartition(ratings, -num_recommendations)[-num_recommendations:]
     print(f"Recommendations for user [0]:")
     print(f"Indexes: {ind}")
     print(f"Ratings: {ratings[ind]}")
+    # Calculate the MSE using the Frobenius norm
+    # Correct indexes from the training
+    u_id = X_test[:, 0].astype(int)
+    m_id = X_test[:, 1].astype(int)
+    # Frobenius norm
+    mse = np.mean((X_test[:, 2] - recc[u_id, m_id])**2)
+    print(f"Mean Squared Error: {mse}")
 
-    x = [x for x, y in training_process]
+    """ x = [x for x, y in training_process]
     y = [y for x, y in training_process]
     plt.figure(figsize=((16,4)))
     plt.plot(x, y)
@@ -199,8 +235,8 @@ def svd_MF():
     plt.xlabel("Iterations")
     plt.ylabel("Mean Square Error")
     plt.grid(axis="y")
-    plt.show()
-    return preds_df
+    plt.show() """
+    return recc
 
 
 
