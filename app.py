@@ -56,6 +56,7 @@ login_manager.login_view = 'login'
 bcrypt = Bcrypt(app)
 app.url_map.strict_slashes = False
 
+
 @app.route("/add-users")
 def add_users():
     return "nothing to add"
@@ -88,7 +89,6 @@ def add_reviews():
         return cluster[rnd.choice(("salty", "spicy", "sour", "sweet", "bitter", "remaining_snacks"))]
     users = list(User.objects)
     rnd.shuffle(users)
-    users = users
     num_users = len(users)
     # Comparators for the user profile
     is_salty = lambda idx : idx < num_users*.14
@@ -111,44 +111,45 @@ def add_reviews():
         if is_salty(idx):
             add_custom_reviews(user, salty, num=60, snack_type="salty")
             add_custom_reviews(user, get_random_category(), num=22)
-            user_profile["salty"].append((user.id, user.email, user.first_name, user.last_name))
+            user_profile["salty"].append((str(user.id), user.email, user.first_name, user.last_name))
         elif is_spicy(idx):
             add_custom_reviews(user, salty, num=60, snack_type="spicy")
             add_custom_reviews(user, get_random_category(), num=22)
-            user_profile["spicy"].append((user.id, user.email, user.first_name, user.last_name))
+            user_profile["spicy"].append((str(user.id), user.email, user.first_name, user.last_name))
         elif is_sour(idx):
             add_custom_reviews(user, salty, num=60, snack_type="sour")
             add_custom_reviews(user, get_random_category(), num=22)
-            user_profile["sour"].append((user.id, user.email, user.first_name, user.last_name))
+            user_profile["sour"].append((str(user.id), user.email, user.first_name, user.last_name))
         elif is_sweet(idx):
             add_custom_reviews(user, salty, num=60, snack_type="sweet")
             add_custom_reviews(user, get_random_category(), num=22)
-            user_profile["sweet"].append((user.id, user.email, user.first_name, user.last_name))
+            user_profile["sweet"].append((str(user.id), user.email, user.first_name, user.last_name))
         elif is_bitter(idx):
             add_custom_reviews(user, salty, num=60, snack_type="bitter")
             add_custom_reviews(user, get_random_category(), num=22)
-            user_profile["bitter"].append((user.id, user.email, user.first_name, user.last_name))
+            user_profile["bitter"].append((str(user.id), user.email, user.first_name, user.last_name))
         elif is_mixed_spicy_sweet(idx):
             add_custom_reviews(user, spicy, num=25, snack_type="salty")
             add_custom_reviews(user, sweet, num=25, snack_type="sweet")
             add_custom_reviews(user, remaining_snacks, num=30)
-            user_profile["mixed_spicy_sweet"].append((user.id, user.email, user.first_name, user.last_name))
+            user_profile["mixed_spicy_sweet"].append((str(user.id), user.email, user.first_name, user.last_name))
         elif is_mixed_sweet_sour(idx):
             add_custom_reviews(user, spicy, num=25, snack_type="sweet")
             add_custom_reviews(user, sweet, num=25, snack_type="sour")
             add_custom_reviews(user, remaining_snacks, num=30)
-            user_profile["mixed_sweet_sour"].append((user.id, user.email, user.first_name, user.last_name))
+            user_profile["mixed_sweet_sour"].append((str(user.id), user.email, user.first_name, user.last_name))
         elif is_mixed_salty_sour(idx):
             add_custom_reviews(user, spicy, num=25, snack_type="salty")
             add_custom_reviews(user, sweet, num=25, snack_type="sour")
             add_custom_reviews(user, remaining_snacks, num=30)
-            user_profile["mixed_salty_sour"].append((user.id, user.email, user.first_name, user.last_name))
+            user_profile["mixed_salty_sour"].append((str(user.id), user.email, user.first_name, user.last_name))
         if idx%100 == 0:
             print(f"Finish user {user.first_name}, index = {idx} out of {len(users)}")
     print(f"Number of users = {len(users)}")
     print(f"Number of snacks = {len(users)}")
     # Save user list profile to a json file
-    with open("snacks/users_snack_profiles.json", "rb") as user_prof_file:
+
+    with open("snacks/users_snack_profiles.json", "w") as user_prof_file:
         json.dump(user_profile, user_prof_file)
     return "no reviews added!"
 
@@ -213,7 +214,6 @@ def add_custom_reviews(user, list_of_snacks, num=1, snack_type="", good_rating=T
 
 
 def commit_normal_review_database(user, snack, geoloc="Canada", rating=1):
-    print("normal")
     user_id = user.id
     snack_id = snack.id
     try:
@@ -238,7 +238,6 @@ def commit_normal_review_database(user, snack, geoloc="Canada", rating=1):
 def commit_metric_review_database(user, snack, geoloc="Canada", rating=1, saltiness_review=1,
                       spiciness_review=1, sourness_review=1, sweetness_review=1,
                       bitterness_review=1):
-    print("metric")
     user_id = user.id
     snack_id = snack.id
     try:
@@ -359,15 +358,6 @@ def serve_img(snack_id):
     # Returning the thumbnail for now
     resp = Response(photo.thumbnail.read(), mimetype=get_mimetype(photo.filename))
     return resp
-
-@app.route("/topkek")
-@login_required
-def topkek():
-    print(current_user.id)
-    print(User.objects(pk=current_user.id).first());
-    return "Topkek"
-
-
 
 @app.route("/index")
 def index():
